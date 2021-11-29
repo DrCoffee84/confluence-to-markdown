@@ -91,19 +91,74 @@ func convertHTMLPageToMD(tempUnzipFolder string) {
 	for _, folder := range files {
 		if folder.IsDir() {
 			unzipFolder := tempUnzipFolder + "/" + folder.Name()
-			pageHTMLfile, err := searchPageHTMLFile(unzipFolder)
+			pageHTMLfile, err := SearchPageHTMLFile(unzipFolder)
+			pageHTMLpath := tempUnzipFolder + "/" + folder.Name() + "/" + pageHTMLfile
+			dirMDpath := destinyFolder + "/" + folder.Name()
+			fileMDpath := dirMDpath + "/" + folder.Name() + ".md"
+
 			if err != nil {
 				log.Fatal(err)
 			}
-			pageHTMLpath := tempUnzipFolder + "/" + folder.Name() + "/" + pageHTMLfile
 
-			fileMDpath := destinyFolder + "/" + folder.Name() + ".md"
-			convertHtmlToMD(pageHTMLpath, fileMDpath)
+			CheckPathExists(true, dirMDpath)
+
+			ConvertHtmlToMD(pageHTMLpath, fileMDpath)
+
+			CopyImages(unzipFolder, dirMDpath)
 		}
 	}
 }
 
-func convertHtmlToMD(pageHTMLpath, fileMDpath string) {
+func CopyImages(folder, dirMDpath string) {
+	regex := `.*\.(gif|jpe?g|tiff?|png|webp|bmp)`
+
+	files, err := ioutil.ReadDir(folder)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+
+		if !file.IsDir() {
+
+			matched, err := regexp.MatchString(regex, file.Name())
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			if matched {
+
+				sourceImage := folder + "/" + file.Name()
+				destinyImage := dirMDpath + "/" + file.Name()
+
+				log.Printf("Coping %s to %s", sourceImage, destinyImage)
+
+				CopyFile(sourceImage, destinyImage)
+			}
+
+		}
+	}
+}
+
+func CopyFile(sourceFile, destinationFile string) {
+	input, err := ioutil.ReadFile(sourceFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = ioutil.WriteFile(destinationFile, input, 0644)
+	if err != nil {
+		fmt.Println("Error coping file ", destinationFile)
+		fmt.Println(err)
+		return
+	}
+
+}
+
+func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	log.Printf("File to convert is: %s in %s", pageHTMLpath, fileMDpath)
 	converter := md.NewConverter("", true, nil)
 
@@ -128,7 +183,7 @@ func convertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	}
 }
 
-func searchPageHTMLFile(folder string) (string, error) {
+func SearchPageHTMLFile(folder string) (string, error) {
 	regex := `page\d+\.html`
 	files, err := ioutil.ReadDir(folder)
 	if err != nil {
