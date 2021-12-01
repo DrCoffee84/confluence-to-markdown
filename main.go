@@ -90,21 +90,31 @@ func convertHTMLPageToMD(tempUnzipFolder string) {
 	}
 	for _, folder := range files {
 		if folder.IsDir() {
+
 			unzipFolder := tempUnzipFolder + "/" + folder.Name()
 			pageHTMLfile, err := SearchPageHTMLFile(unzipFolder)
 			pageHTMLpath := tempUnzipFolder + "/" + folder.Name() + "/" + pageHTMLfile
-			dirMDpath := destinyFolder + "/" + folder.Name()
-			fileMDpath := dirMDpath + "/" + folder.Name() + ".md"
+			dirMDpath := folder.Name()
+
+			// TODO: sin version.
+			dirMDpath = strings.ReplaceAll(dirMDpath, " ", "-")
+			dirMDpath = strings.ToLower(dirMDpath)
+
+			reg := regexp.MustCompile(`-v\d.*`)
+			dirMDpath = reg.ReplaceAllString(dirMDpath, "${0}")
+			fullMDPath := destinyFolder + "/" + dirMDpath
+
+			fileMDpath := fullMDPath + "/" + dirMDpath + ".md"
 
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			CheckPathExists(true, dirMDpath)
+			CheckPathExists(true, fullMDPath)
 
 			ConvertHtmlToMD(pageHTMLpath, fileMDpath)
 
-			CopyImages(unzipFolder, dirMDpath)
+			CopyImages(unzipFolder, fullMDPath)
 		}
 	}
 }
@@ -155,7 +165,6 @@ func CopyFile(sourceFile, destinationFile string) {
 		fmt.Println(err)
 		return
 	}
-
 }
 
 func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
@@ -174,10 +183,18 @@ func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 		log.Fatal(err)
 	}
 
-	// write file :)
-	mydata := []byte(markdown)
+	// poner un check en la UI para habilitar esto
+	markdown = strings.ReplaceAll(markdown, "# ", "## ")
+	markdown = strings.Replace(markdown, "## ", "# ", 1)
 
-	errr := ioutil.WriteFile(fileMDpath, mydata, 0777)
+	// quitar bold en titulos  # *...*
+	reg := regexp.MustCompile(`^#.*(\*\*.*\*\*)`)
+	markdown = reg.ReplaceAllString(markdown, "${1}")
+
+	// write file :)
+	markdownBinary := []byte(markdown)
+
+	errr := ioutil.WriteFile(fileMDpath, markdownBinary, 0777)
 	if errr != nil {
 		log.Fatal(err)
 	}
