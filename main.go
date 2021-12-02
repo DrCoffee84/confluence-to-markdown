@@ -203,12 +203,10 @@ func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	markdown = strings.Replace(markdown, "## ", "# ", 1)
 
 	// remove index :)
-	re := regexp.MustCompile(`( *- \[.*\]\(.*\)(\r\n|\r|\n)+)+`)
-	markdown = re.ReplaceAllStringFunc(markdown,
-		func(m string) string {
+	re := regexp.MustCompile(`( *- \[.*\]\(.*\)\s*(\r\n|\r|\n)+)+`)
+	firstMatch := re.FindString(markdown)
 
-			return strings.ReplaceAll(m, m, "")
-		})
+	markdown = strings.Replace(markdown, firstMatch, "", 1)
 
 	// quitar bold en titulos  # *...*
 	reg := regexp.MustCompile(`(?m)#.*\*\*.*\*\*`)
