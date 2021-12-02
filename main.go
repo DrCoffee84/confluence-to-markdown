@@ -21,6 +21,9 @@ var sourceFolder = "./html-zip-downloaded"
 var doneZipFolder = "./done-zip"
 var destinyFolder = "./processed-markdown"
 var tempUnzipFolder = "./tempUnzip"
+var checkTitle = true
+var checkBold = true
+var checkIndex = true
 
 func main() {
 	ui, err := lorca.New("", "", 1024, 768)
@@ -65,6 +68,13 @@ func main() {
 		<br>
 		<br>
 		<div>The MD files have will create in ./processed-markdown</div>
+		<!--
+		<input type="checkbox" id="checkTitle" value="# -> ##">"# -> ## 
+		<br>
+		<input type="checkbox" id="checkBold" value="# **bold** -> # bold"># **bold** -> # bold
+		<br>
+		<input type="checkbox" id="checkIndex" value="Remove index">Remove index
+		<br>-->
 		<button onclick="convert()">Convert</button>
 		<br>
 		<textarea style="resize: none;height: 200px;width: 90%;" readonly id="listOfFilesDone"></textarea>
@@ -95,13 +105,13 @@ func convertHTMLPageToMD(tempUnzipFolder string) {
 			pageHTMLfile, err := SearchPageHTMLFile(unzipFolder)
 			pageHTMLpath := tempUnzipFolder + "/" + folder.Name() + "/" + pageHTMLfile
 			dirMDpath := folder.Name()
-
-			// TODO: sin version.
 			dirMDpath = strings.ReplaceAll(dirMDpath, " ", "-")
 			dirMDpath = strings.ToLower(dirMDpath)
 
 			reg := regexp.MustCompile(`-v\d.*`)
-			dirMDpath = reg.ReplaceAllString(dirMDpath, "${0}")
+			dirMDpath = reg.ReplaceAllString(dirMDpath, "${1}")
+			fmt.Print("dirMDPath: " + dirMDpath)
+
 			fullMDPath := destinyFolder + "/" + dirMDpath
 
 			fileMDpath := fullMDPath + "/" + dirMDpath + ".md"
@@ -182,14 +192,30 @@ func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	/// FORMAT markdown
 
 	// poner un check en la UI para habilitar esto
-	markdown = strings.ReplaceAll(markdown, "# ", "## ")
+	r := regexp.MustCompile(`(?m)^# `)
+	markdown = r.ReplaceAllStringFunc(markdown,
+		func(m string) string {
+			return strings.ReplaceAll(m, "# ", "## ")
+		})
 	markdown = strings.Replace(markdown, "## ", "# ", 1)
 
+	// remove index :)
+	re := regexp.MustCompile(`( *- \[.*\]\(.*\)(\r\n|\r|\n)+)+`)
+	markdown = re.ReplaceAllStringFunc(markdown,
+		func(m string) string {
+
+			return strings.ReplaceAll(m, m, "")
+		})
+
 	// quitar bold en titulos  # *...*
-	reg := regexp.MustCompile(`^#.*(\*\*.*\*\*)`)
-	markdown = reg.ReplaceAllString(markdown, "${1}")
+	reg := regexp.MustCompile(`(?m)#.*\*\*.*\*\*`)
+	markdown = reg.ReplaceAllStringFunc(markdown,
+		func(m string) string {
+			return strings.ReplaceAll(m, "**", "")
+		})
 
 	// write file :)
 	markdownBinary := []byte(markdown)
