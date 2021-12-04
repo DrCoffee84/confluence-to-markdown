@@ -24,6 +24,7 @@ var tempUnzipFolder = "./tempUnzip"
 var checkTitle = true
 var checkBold = true
 var checkIndex = true
+var checkTwoLines = true
 
 func main() {
 	ui, err := lorca.New("", "", 1024, 768)
@@ -34,8 +35,12 @@ func main() {
 	////// define javascript funcs
 
 	ui.Bind("refresh", func() {
+		CheckVariables(ui)
+
 		CheckPathExists(true, sourceFolder)
 		ReadFolderAndSetTextArea(sourceFolder, "listOfFiles", ui)
+		ReadFolderAndSetTextArea(doneZipFolder, "listOfFilesDone", ui)
+		ReadFolderAndSetTextArea(destinyFolder, "listOfFilesProcess", ui)
 	})
 
 	ui.Bind("convert", func() {
@@ -43,6 +48,8 @@ func main() {
 		CheckPathExists(true, destinyFolder, tempUnzipFolder)
 
 		UnzipAll(sourceFolder, tempUnzipFolder)
+
+		CheckVariables(ui)
 
 		convertHTMLPageToMD(tempUnzipFolder)
 
@@ -56,28 +63,31 @@ func main() {
 	////// define html
 
 	ui.Load("data:text/html," + url.PathEscape(`
-	<html>
-		<head><title>Confluence to Markdown - Taglatam (alpha v0.0.1)</title></head>
+	<html> 	
+		<head><title>Confluence to Markdown - Taglatam (alpha v0.2.0)</title></head>
 		<body onload="refresh()"><h5>Zips to convert</h5>
-		<div>Put the zip files in ./html-zip-downloaded</div>
-		<button onclick="refresh()">refresh</button>
 		<br>
-		<textarea style="resize: none;height: 200px;width: 90%;" readonly id="listOfFiles"></textarea>
+		<h4>Put the zip files in ./html-zip-downloaded  List of done zips in ./done-zip</h4>
+		<textarea style="resize: none;height: 200px;width: 45%;" readonly id="listOfFiles"></textarea>
+		<textarea style="resize: none;height: 200px;width: 45%;" readonly id="listOfFilesDone"></textarea>
+		<button onclick="refresh()">refresh</button>
 		<br>
 		<br>
 		<br>
 		<br>
 		<div>The MD files have will create in ./processed-markdown</div>
-		<!--
-		<input type="checkbox" id="checkTitle" value="# -> ##">"# -> ## 
+		
+		<input type="checkbox" id="checkTitle" checked>Change title 1 to title 2 (# -> ##)
 		<br>
-		<input type="checkbox" id="checkBold" value="# **bold** -> # bold"># **bold** -> # bold
+		<input type="checkbox" id="checkBold" checked>Eliminate bold from titles
 		<br>
-		<input type="checkbox" id="checkIndex" value="Remove index">Remove index
-		<br>-->
+		<input type="checkbox" id="checkIndex" checked>Remove index
+		<br>
+		<input type="checkbox" id="checkTwoLines" checked>Remove 2 first lines
+		<br>
 		<button onclick="convert()">Convert</button>
 		<br>
-		<textarea style="resize: none;height: 200px;width: 90%;" readonly id="listOfFilesDone"></textarea>
+		<textarea style="resize: none;height: 200px;width: 90%;" readonly id="listOfFilesProcess"></textarea>
 		<br>
 		<br>
 		<br>
@@ -87,7 +97,13 @@ func main() {
 	`))
 
 	<-ui.Done()
+}
 
+func CheckVariables(ui lorca.UI) {
+	checkTitle = ui.Eval(`document.getElementById("checkTitle").checked`).Bool()
+	checkBold = ui.Eval(`document.getElementById("checkBold").checked`).Bool()
+	checkIndex = ui.Eval(`document.getElementById("checkIndex").checked`).Bool()
+	checkTwoLines = ui.Eval(`document.getElementById("checkTwoLines").checked`).Bool()
 }
 
 //TODO: using listFiles function with function params :)
@@ -194,26 +210,34 @@ func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	}
 	/// FORMAT markdown
 
-	// poner un check en la UI para habilitar esto
-	r := regexp.MustCompile(`(?m)^# `)
-	markdown = r.ReplaceAllStringFunc(markdown,
-		func(m string) string {
-			return strings.ReplaceAll(m, "# ", "## ")
-		})
-	markdown = strings.Replace(markdown, "## ", "# ", 1)
+	if checkTitle {
+		r := regexp.MustCompile(`(?m)^# `)
+		markdown = r.ReplaceAllStringFunc(markdown,
+			func(m string) string {
+				return strings.ReplaceAll(m, "# ", "## ")
+			})
+		markdown = strings.Replace(markdown, "## ", "# ", 1)
+	}
 
-	// remove index :)
-	re := regexp.MustCompile(`( *- \[.*\]\(.*\)\s*(\r\n|\r|\n)+)+`)
-	firstMatch := re.FindString(markdown)
+	if checkIndex {
+		re := regexp.MustCompile(`( *- \[.*\]\(.*\)\s*(\r\n|\r|\n)+)+`)
+		firstMatch := re.FindString(markdown)
 
-	markdown = strings.Replace(markdown, firstMatch, "", 1)
+		markdown = strings.Replace(markdown, firstMatch, "", 1)
+	}
 
-	// quitar bold en titulos  # *...*
-	reg := regexp.MustCompile(`(?m)#.*\*\*.*\*\*`)
-	markdown = reg.ReplaceAllStringFunc(markdown,
-		func(m string) string {
-			return strings.ReplaceAll(m, "**", "")
-		})
+	if checkBold {
+		reg := regexp.MustCompile(`(?m)#.*\*\*.*\*\*`)
+		markdown = reg.ReplaceAllStringFunc(markdown,
+			func(m string) string {
+				return strings.ReplaceAll(m, "**", "")
+			})
+	}
+
+	// remove first
+	rege := regexp.MustCompile(`.*(\r\n|\r|\n).*(\r\n|\r|\n)`)
+	firstTwoLine := rege.FindString(markdown)
+	markdown = strings.Replace(markdown, firstTwoLine, "", 1)
 
 	// write file :)
 	markdownBinary := []byte(markdown)
@@ -299,8 +323,8 @@ func UnzipAll(zipFolder string, unzipFolder string) {
 		}
 
 		// to do: in windows dont work move file (for now (?))
-		//	pathDoneZipFolder := doneZipFolder + "/" + filename
-		//	MoveFile(pathFile, pathDoneZipFolder)
+		pathDoneZipFolder := doneZipFolder + "/" + filename
+		MoveFile(pathFile, pathDoneZipFolder)
 	}
 }
 
@@ -308,6 +332,7 @@ func MoveFile(pathFile, pathDoneZipFolder string) {
 	CheckPathExists(true, doneZipFolder)
 	CheckPathExists(false, pathFile)
 	log.Printf("Moving %s to %s", pathFile, pathDoneZipFolder)
+
 	e := os.Rename(pathFile, pathDoneZipFolder)
 	if e != nil {
 		log.Fatal(e)
