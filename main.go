@@ -25,6 +25,7 @@ var checkTitle = true
 var checkBold = true
 var checkIndex = true
 var checkTwoLines = true
+var checkCollapsible = true
 
 func main() {
 	ui, err := lorca.New("", "", 1024, 768)
@@ -85,6 +86,8 @@ func main() {
 		<br>
 		<input type="checkbox" id="checkTwoLines" checked>Remove 2 first lines
 		<br>
+		<input type="checkbox" id="checkCollapsible" checked>Add collapsible in code sections
+		<br>
 		<button onclick="convert()">Convert</button>
 		<br>
 		<textarea style="resize: none;height: 200px;width: 90%;" readonly id="listOfFilesProcess"></textarea>
@@ -104,6 +107,7 @@ func CheckVariables(ui lorca.UI) {
 	checkBold = ui.Eval(`document.getElementById("checkBold").checked`).Bool()
 	checkIndex = ui.Eval(`document.getElementById("checkIndex").checked`).Bool()
 	checkTwoLines = ui.Eval(`document.getElementById("checkTwoLines").checked`).Bool()
+	checkCollapsible = ui.Eval(`document.getElementById("checkCollapsible").checked`).Bool()
 }
 
 //TODO: using listFiles function with function params :)
@@ -235,9 +239,22 @@ func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	}
 
 	// remove first
-	rege := regexp.MustCompile(`.*(\r\n|\r|\n).*(\r\n|\r|\n)`)
-	firstTwoLine := rege.FindString(markdown)
-	markdown = strings.Replace(markdown, firstTwoLine, "", 1)
+	if checkTwoLines {
+		rege := regexp.MustCompile(`.*(\r\n|\r|\n).*(\r\n|\r|\n)`)
+		firstTwoLine := rege.FindString(markdown)
+		markdown = strings.Replace(markdown, firstTwoLine, "", 1)
+	}
+
+	// add collapsible
+
+	// find ```(.*)```
+	if checkCollapsible {
+		rege := regexp.MustCompile("(?m)^(```(?:.*)(\\r\\n|\\r|\\n)([\\s\\S]*?)```)$")
+		markdown = rege.ReplaceAllStringFunc(markdown,
+			func(m string) string {
+				return "<details>\n<summary>Code</summary>\n\n" + m + "\n\n</details>"
+			})
+	}
 
 	// write file :)
 	markdownBinary := []byte(markdown)
