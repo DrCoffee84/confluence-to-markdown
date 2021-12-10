@@ -26,6 +26,7 @@ var checkBold = true
 var checkIndex = true
 var checkTwoLines = true
 var checkCollapsible = true
+var checkMoveFilesAfterConvert = true
 
 func main() {
 	ui, err := lorca.New("", "", 1024, 768)
@@ -35,26 +36,22 @@ func main() {
 
 	////// define javascript funcs
 
-	ui.Bind("refresh", func() {
-		CheckVariables(ui)
+	ui.Bind("Refresh", func() {
+		Refresh(ui)
 
-		CheckPathExists(true, sourceFolder)
-		ReadFolderAndSetTextArea(sourceFolder, "listOfFiles", ui)
-		ReadFolderAndSetTextArea(doneZipFolder, "listOfFilesDone", ui)
-		ReadFolderAndSetTextArea(destinyFolder, "listOfFilesProcess", ui)
 	})
 
+	/// BUTTON CONVERT:
 	ui.Bind("convert", func() {
+		CheckVariablesToFormating(ui)
 
 		CheckPathExists(true, destinyFolder, tempUnzipFolder)
 
 		UnzipAll(sourceFolder, tempUnzipFolder)
 
-		CheckVariables(ui)
+		ConvertHTMLPageToMD(tempUnzipFolder)
 
-		convertHTMLPageToMD(tempUnzipFolder)
-
-		ReadFolderAndSetTextArea(destinyFolder, "listOfFilesDone", ui)
+		Refresh(ui)
 	})
 
 	////// end of javascript funcs
@@ -65,19 +62,21 @@ func main() {
 
 	ui.Load("data:text/html," + url.PathEscape(`
 	<html> 	
-		<head><title>Confluence to Markdown - Taglatam (alpha v0.2.0)</title></head>
-		<body onload="refresh()"><h5>Zips to convert</h5>
+		<head><title>Confluence to Markdown - Taglatam (alpha v0.2.5)</title></head>
+		<body onload="Refresh()"><h5>Zips to convert</h5>
 		<br>
 		<h4>Put the zip files in ./html-zip-downloaded  List of done zips in ./done-zip</h4>
 		<textarea style="resize: none;height: 200px;width: 45%;" readonly id="listOfFiles"></textarea>
 		<textarea style="resize: none;height: 200px;width: 45%;" readonly id="listOfFilesDone"></textarea>
-		<button onclick="refresh()">refresh</button>
+		<button onclick="Refresh()">refresh </button>
 		<br>
 		<br>
 		<br>
 		<br>
 		<div>The MD files have will create in ./processed-markdown</div>
-		
+		<br>
+		<input type="checkbox" id="checkMoveFilesAfterConvert" checked>Move files to done folder after convert
+		<br>
 		<input type="checkbox" id="checkTitle" checked>Change title 1 to title 2 (# -> ##)
 		<br>
 		<input type="checkbox" id="checkBold" checked>Eliminate bold from titles
@@ -98,22 +97,27 @@ func main() {
 		</body>
 	</html>
 	`))
-
 	<-ui.Done()
 }
 
-func CheckVariables(ui lorca.UI) {
+func Refresh(ui lorca.UI) {
+	CheckVariablesToFormating(ui)
+	CheckPathExists(true, sourceFolder)
+	ReadFolderAndSetTextArea(sourceFolder, "listOfFiles", ui)
+	ReadFolderAndSetTextArea(doneZipFolder, "listOfFilesDone", ui)
+	ReadFolderAndSetTextArea(destinyFolder, "listOfFilesProcess", ui)
+}
+
+func CheckVariablesToFormating(ui lorca.UI) {
 	checkTitle = ui.Eval(`document.getElementById("checkTitle").checked`).Bool()
 	checkBold = ui.Eval(`document.getElementById("checkBold").checked`).Bool()
 	checkIndex = ui.Eval(`document.getElementById("checkIndex").checked`).Bool()
 	checkTwoLines = ui.Eval(`document.getElementById("checkTwoLines").checked`).Bool()
 	checkCollapsible = ui.Eval(`document.getElementById("checkCollapsible").checked`).Bool()
+	checkMoveFilesAfterConvert = ui.Eval(`document.getElementById("checkMoveFilesAfterConvert").checked`).Bool()
 }
 
-//TODO: using listFiles function with function params :)
-//TODO: same with listFolders
-
-func convertHTMLPageToMD(tempUnzipFolder string) {
+func ConvertHTMLPageToMD(tempUnzipFolder string) {
 	files, err := ioutil.ReadDir(tempUnzipFolder)
 	if err != nil {
 		log.Fatal(err)
@@ -313,6 +317,10 @@ func ReadFolderAndSetTextArea(path string, idTextArea string, ui lorca.UI) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	clean := fmt.Sprintf(`document.getElementById('%s').value = ""`, idTextArea)
+	ui.Eval(clean)
+
 	for _, file := range files {
 		list := fmt.Sprintf(`document.getElementById('%s').value += "%s\n"`, idTextArea, file.Name())
 		ui.Eval(list)
@@ -341,7 +349,12 @@ func UnzipAll(zipFolder string, unzipFolder string) {
 
 		// to do: in windows dont work move file (for now (?))
 		pathDoneZipFolder := doneZipFolder + "/" + filename
-		MoveFile(pathFile, pathDoneZipFolder)
+
+		fmt.Printf("Move FILE: %v", checkMoveFilesAfterConvert)
+
+		if checkMoveFilesAfterConvert {
+			MoveFile(pathFile, pathDoneZipFolder)
+		}
 	}
 }
 
