@@ -102,7 +102,7 @@ func main() {
 
 func Refresh(ui lorca.UI) {
 	CheckVariablesToFormating(ui)
-	CheckPathExists(true, sourceFolder)
+	CheckPathExists(true, sourceFolder, doneZipFolder, destinyFolder)
 	ReadFolderAndSetTextArea(sourceFolder, "listOfFiles", ui)
 	ReadFolderAndSetTextArea(doneZipFolder, "listOfFilesDone", ui)
 	ReadFolderAndSetTextArea(destinyFolder, "listOfFilesProcess", ui)
@@ -359,7 +359,6 @@ func UnzipAll(zipFolder string, unzipFolder string) {
 }
 
 func MoveFile(pathFile, pathDoneZipFolder string) {
-	CheckPathExists(true, doneZipFolder)
 	CheckPathExists(false, pathFile)
 	log.Printf("Moving %s to %s", pathFile, pathDoneZipFolder)
 
