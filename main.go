@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/JohannesKaufmann/html-to-markdown/plugin"
 	"github.com/zserge/lorca"
 )
 
@@ -204,6 +205,7 @@ func CopyFile(sourceFile, destinationFile string) {
 func ConvertHtmlToMD(pageHTMLpath, fileMDpath string) {
 	log.Printf("File to convert is: %s in %s", pageHTMLpath, fileMDpath)
 	converter := md.NewConverter("", true, nil)
+	converter.Use(plugin.GitHubFlavored())
 
 	htmlFile, err := os.ReadFile(pageHTMLpath)
 	if err != nil {
